@@ -15,5 +15,5 @@ wasi = "0.13.2"
 wit-bindgen = "0.32"
 reqwest = "0.11"
 chrono = "0.4"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["sync","macros","io-util","rt","time"] }
 calamine = "0.18"
