@@ -1,5 +1,5 @@
 mod bindings {
-    use crate::DogFetcher;
+    use crate::FinanceFetcher;
 
     wit_bindgen::generate!({
         with: {
@@ -13,85 +13,54 @@ mod bindings {
         }
     });
 
-    export!(DogFetcher);
+    export!(FinanceFetcher);
 }
 
 use std::io::{Read as _, Write as _};
-
 use bindings::exports::wasi::http::incoming_handler::Guest;
 use wasi::http::types::*;
+use reqwest::Client;
+use chrono::NaiveDate;
+use calamine::{Xlsx, open_workbook, Writer, XlsxWriter};
 
 #[derive(serde::Deserialize)]
-struct DogResponse {
-    message: String,
+struct FinanceResponse {
+    // Define the structure of the financial data response
 }
 
-struct DogFetcher;
+struct FinanceFetcher;
 
-impl Guest for DogFetcher {
-    fn handle(_request: IncomingRequest, response_out: ResponseOutparam) {
-        // Build a request to dog.ceo which returns a URL at which we can find a doggo
-        let req = wasi::http::outgoing_handler::OutgoingRequest::new(Fields::new());
-        req.set_scheme(Some(&Scheme::Https)).unwrap();
-        req.set_authority(Some("dog.ceo")).unwrap();
-        req.set_path_with_query(Some("/api/breeds/image/random"))
-            .unwrap();
+impl Guest for FinanceFetcher {
+    fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
+        // Parse input form data
+        let form_data = parse_form_data(request);
 
-        // Perform the API call to dog.ceo, expecting a URL to come back as the response body
-        let dog_picture_url = match wasi::http::outgoing_handler::handle(req, None) {
-            Ok(resp) => {
-                resp.subscribe().block();
-                let response = resp
-                    .get()
-                    .expect("HTTP request response missing")
-                    .expect("HTTP request response requested more than once")
-                    .expect("HTTP request failed");
-                if response.status() == 200 {
-                    let response_body = response
-                        .consume()
-                        .expect("failed to get incoming request body");
-                    let body = {
-                        let mut buf = vec![];
-                        let mut stream = response_body
-                            .stream()
-                            .expect("failed to get HTTP request response stream");
-                        stream
-                            .read_to_end(&mut buf)
-                            .expect("failed to read value from HTTP request response stream");
-                        buf
-                    };
-                    let _trailers = wasi::http::types::IncomingBody::finish(response_body);
-                    let dog_response: DogResponse = serde_json::from_slice(&body).unwrap();
-                    dog_response.message
-                } else {
-                    format!("HTTP request failed with status code {}", response.status())
-                }
-            }
-            Err(e) => {
-                format!("Got error when trying to fetch dog: {}", e)
-            }
-        };
+        // Query financial data using an open finance data API
+        let finance_data = query_financial_data(&form_data);
 
-        // Build the HTTP response we'll send back to the user
+        // Create and stream xls file with queried data
+        let xls_file = create_xls_file(&finance_data);
+
+        // Modify response to return xls file for download
         let response = OutgoingResponse::new(Fields::new());
         response.set_status_code(200).unwrap();
-
-        // Write the headers and then write the body
         let response_body = response.body().unwrap();
         let mut write_stream = response_body.write().unwrap();
         ResponseOutparam::set(response_out, Ok(response));
-
-        // wasi:io/outgoing-stream.blocking_write_and_flush() is the simplest way to
-        // write small payloads to an IO stream, but it is limited (up to 4096 bytes).
-        //
-        // Since it's likely that the URL we retrieved from the dog.ceo API is likely
-        // within that limit, we use blocking_write_and_flush() here.
-        //
-        // If we expected the body to possibly be longer, we'd need to loop and write chunks,
-        // paying attention to how to use the appropriate wasi:io APIs.
-        write_stream.write_all(dog_picture_url.as_bytes()).unwrap();
+        write_stream.write_all(&xls_file).unwrap();
         drop(write_stream);
-
         OutgoingBody::finish(response_body, None).expect("failed to finish response body");
     }
+}
+
+fn parse_form_data(request: IncomingRequest) -> FormData {
+    // Implement form data parsing logic
+}
+
+fn query_financial_data(form_data: &FormData) -> FinanceResponse {
+    // Implement financial data querying logic using reqwest
+}
+
+fn create_xls_file(finance_data: &FinanceResponse) -> Vec<u8> {
+    // Implement xls file creation logic using calamine
 }
