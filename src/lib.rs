@@ -23,6 +23,8 @@ use reqwest::Client;
 use chrono::NaiveDate;
 // Remove Writer, XlsxWriter since calamine no longer supports writing.
 use calamine::{Xlsx, open_workbook};
+use warp::Filter;
+use handlebars::Handlebars;
 
 // ----------------------------
 // 1) Define the data structures
@@ -118,4 +120,29 @@ fn create_xls_file(finance_data: &FinanceResponse) -> Vec<u8> {
     ).into_bytes();
 
     fake_bytes
+}
+
+// Serve the index.html file
+async fn serve_index() -> Result<impl warp::Reply, warp::Rejection> {
+    let html = include_str!("index.html");
+    Ok(warp::reply::html(html))
+}
+
+// Handle form submissions
+async fn handle_form_submission(form: warp::filters::body::Form<FormData>) -> Result<impl warp::Reply, warp::Rejection> {
+    let form_data = form.into_inner();
+    let finance_data = query_financial_data(&form_data);
+    let xls_file = create_xls_file(&finance_data);
+    Ok(warp::reply::with_header(xls_file, "Content-Disposition", "attachment; filename=\"finance_data.xlsx\""))
+}
+
+// Main function to start the server
+#[tokio::main]
+async fn main() {
+    let index_route = warp::path::end().and_then(serve_index);
+    let form_route = warp::path("submit").and(warp::post()).and(warp::body::form()).and_then(handle_form_submission);
+
+    let routes = index_route.or(form_route);
+
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
