@@ -47,3 +47,14 @@ curl http://127.0.0.1:8000
 ## Adding Capabilities
 
 To learn how to extend this example with additional capabilities, see the [Adding Capabilities](https://wasmcloud.com/docs/tour/adding-capabilities?lang=rust) section of the wasmCloud documentation.
+
+## Running the Application and Using the Form
+
+1. Build the project using `wash build`.
+2. Run the application using `wasmtime` or `wasmCloud` as described above.
+3. Open your web browser and navigate to `http://127.0.0.1:3030`.
+4. Fill out the form with the following fields:
+   - A list of valid stock tickers to query
+   - A start and finish date range
+5. Click the submit button to initiate the query.
+6. The queried data will be processed and returned to the screen.
